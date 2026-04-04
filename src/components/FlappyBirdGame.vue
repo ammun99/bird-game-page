@@ -2,21 +2,37 @@
   <div class="game-page">
     <div class="game-card">
       <canvas
-        ref="canvasRef"
-        :width="gameWidth"
-        :height="gameHeight"
-        tabindex="0"
-        @keydown="handleKeydown"
-      ></canvas>
+  ref="canvasRef"
+  :width="gameWidth"
+  :height="gameHeight"
+  tabindex="0"
+  @keydown="handleKeydown"
+  @pointerdown.prevent="handleTap"
+></canvas>
 
       <div class="game-actions">
         <button @click="startGame">Start</button>
         <button @click="resetFullGame">Restart</button>
+        <button
+          v-if="gameState === 'GAME_OVER' && game.currentLevel >= 2"
+          @click="handleContinue"
+          :disabled="game.coinsCollected < CONTINUE_COST[game.currentLevel - 1]"
+          class="btn-continue"
+        >
+          Continue (-{{ CONTINUE_COST[game.currentLevel - 1] }} coins)
+        </button>
+        <button
+          v-if="gameState === 'WINNER'"
+          @click="resetFullGame"
+          class="btn-play-again"
+        >
+          🎉 Play Again
+        </button>
       </div>
 
       <p class="hint">
-        Press <strong>Space</strong> to start/flap,
-        <strong>C</strong> to continue,
+        <strong>Space</strong> / Tap to flap &nbsp;·&nbsp;
+        <strong>C</strong> to continue &nbsp;·&nbsp;
         <strong>R</strong> to restart
       </p>
     </div>
@@ -56,20 +72,25 @@ const HOVER_AMP = 7.0
 const CONTINUE_COST = [0, 3, 5, 7, 9]
 const MIN_COINS_PER_LEVEL = [4, 6, 8, 10, 12]
 
+// pipeDelay increased to give more breathing room between pipe pairs
 const LEVELS = [
-  { pipeDelay: 2000, vx: -2.2, gap: 190, pairsToPass: 3 },
-  { pipeDelay: 1800, vx: -2.5, gap: 175, pairsToPass: 4 },
-  { pipeDelay: 1600, vx: -2.8, gap: 160, pairsToPass: 5 },
-  { pipeDelay: 1400, vx: -3.1, gap: 145, pairsToPass: 6 },
-  { pipeDelay: 1200, vx: -3.4, gap: 130, pairsToPass: 7 }
+  { pipeDelay: 3200, vx: -2.2, gap: 190, pairsToPass: 3 },
+  { pipeDelay: 3000, vx: -2.5, gap: 175, pairsToPass: 4 },
+  { pipeDelay: 2800, vx: -2.8, gap: 160, pairsToPass: 5 },
+  { pipeDelay: 2600, vx: -3.1, gap: 145, pairsToPass: 6 },
+  { pipeDelay: 2400, vx: -3.4, gap: 130, pairsToPass: 7 }
 ]
 
 const canvasRef = ref(null)
+const gameState = ref('READY') // reactive mirror for template v-if bindings
 
 let ctx = null
 let animationId = null
 let lastTime = 0
 let pipeSpawnAccumulator = 0
+
+// Confetti particles for winner screen
+let confetti = []
 
 const bgImage = new Image()
 const birdImage = new Image()
@@ -114,6 +135,10 @@ const game = {
 
   pipes: [],
   coins: []
+}
+
+function syncReactiveState() {
+  gameState.value = game.state
 }
 
 function currentCfg() {
@@ -175,6 +200,7 @@ function resetLevel(fullReset = false) {
   game.pipes = []
   game.coins = []
   pipeSpawnAccumulator = 0
+  syncReactiveState()
 }
 
 function resetFullGame() {
@@ -205,6 +231,7 @@ function doContinueLevel() {
   game.pipes = []
   game.coins = []
   pipeSpawnAccumulator = 0
+  syncReactiveState()
   focusCanvas()
 }
 
@@ -236,6 +263,7 @@ function triggerGameOver() {
   game.showNotEnoughCoins = false
   stopBgMusic()
   safePlay(gameOverAudio)
+  syncReactiveState()
 }
 
 function spawnPipePair() {
@@ -266,6 +294,20 @@ function spawnPipePair() {
 
   game.pipes.push(topPipe, bottomPipe)
   spawnCoinsForGap(topPipe, bottomPipe, cfg)
+
+  // Spawn additional coins horizontally between this pipe pair and the next
+  const framesToNextPipe = cfg.pipeDelay / 16.666
+  const pixelsToNextPipe = framesToNextPipe * Math.abs(cfg.vx)
+  
+  if (Math.random() < 0.75) {
+    const rY = 100 + Math.random() * (gameHeight - 200)
+    game.coins.push({
+      x: gameWidth + pixelsToNextPipe / 2, // Horizontally halfway to the next pipe
+      y: rY,
+      size: 28
+    })
+    game.coinsSpawnedThisLevel += 1
+  }
 }
 
 function spawnCoinsForGap(topPipe, bottomPipe, cfg) {
@@ -336,8 +378,15 @@ function update(dtMs) {
         game.state = 'WINNER'
         stopBgMusic()
         safePlay(winAudio)
+        spawnConfetti()
+        syncReactiveState()
       }
     }
+    return
+  }
+
+  if (game.state === 'WINNER') {
+    updateConfetti(dtMs)
     return
   }
 
@@ -402,6 +451,8 @@ function update(dtMs) {
       game.state = 'WINNER'
       stopBgMusic()
       safePlay(winAudio)
+      spawnConfetti()
+      syncReactiveState()
     } else {
       game.state = 'LEVEL_COMPLETE'
       game.levelCompleteElapsed = 0
@@ -529,32 +580,103 @@ function drawGameOverOverlay() {
   drawCentered('[R] Restart from Level 1', divY + 33)
 }
 
+// Confetti helpers
+const CONFETTI_COLORS = ['#ffd700','#ff6b6b','#4ecdc4','#45b7d1','#96e6a1','#f7971e','#f953c6']
+
+function spawnConfetti() {
+  confetti = []
+  for (let i = 0; i < 80; i++) {
+    confetti.push({
+      x: Math.random() * gameWidth,
+      y: Math.random() * -gameHeight,
+      w: 6 + Math.random() * 8,
+      h: 8 + Math.random() * 6,
+      color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+      vy: 1.5 + Math.random() * 2.5,
+      vx: (Math.random() - 0.5) * 1.5,
+      rot: Math.random() * Math.PI * 2,
+      rotV: (Math.random() - 0.5) * 0.15
+    })
+  }
+}
+
+function updateConfetti(dtMs) {
+  const factor = dtMs / 16
+  for (const p of confetti) {
+    p.x += p.vx * factor
+    p.y += p.vy * factor
+    p.rot += p.rotV * factor
+    // Wrap around when off-screen
+    if (p.y > gameHeight + 20) {
+      p.y = -20
+      p.x = Math.random() * gameWidth
+    }
+  }
+}
+
+function drawConfetti() {
+  for (const p of confetti) {
+    ctx.save()
+    ctx.translate(p.x + p.w / 2, p.y + p.h / 2)
+    ctx.rotate(p.rot)
+    ctx.fillStyle = p.color
+    ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h)
+    ctx.restore()
+  }
+}
+
 function drawWinnerOverlay() {
-  ctx.fillStyle = 'rgba(0,0,0,0.67)'
+  // Dark gradient background
+  const grad = ctx.createLinearGradient(0, 0, 0, gameHeight)
+  grad.addColorStop(0, 'rgba(20,10,60,0.92)')
+  grad.addColorStop(1, 'rgba(60,20,100,0.92)')
+  ctx.fillStyle = grad
   ctx.fillRect(0, 0, gameWidth, gameHeight)
 
+  // Confetti on top of background
+  drawConfetti()
+
+  // Glowing panel
+  ctx.fillStyle = 'rgba(255,215,0,0.12)'
+  roundRect(ctx, 20, gameHeight / 2 - 160, gameWidth - 40, 260, 20)
+  ctx.fill()
+  ctx.strokeStyle = '#ffd700'
+  ctx.lineWidth = 2
+  roundRect(ctx, 20, gameHeight / 2 - 160, gameWidth - 40, 260, 20)
+  ctx.stroke()
+
   ctx.fillStyle = '#ffd700'
-  ctx.font = 'bold 36px Arial'
-  drawCentered('Congratulations! 🎉', gameHeight / 2 - 80)
+  ctx.font = 'bold 28px Arial'
+  drawCentered('🎉 Congratulations! 🎉', gameHeight / 2 - 120)
 
   ctx.fillStyle = '#fff'
-  ctx.font = 'bold 28px Arial'
-  drawCentered('You Win! 🏆', gameHeight / 2 - 30)
+  ctx.font = 'bold 32px Arial'
+  drawCentered('You Win! 🏆', gameHeight / 2 - 75)
 
-  ctx.font = '20px Arial'
-  drawCentered('All 5 levels cleared!', gameHeight / 2 - 2)
+  ctx.fillStyle = '#c8f5c8'
+  ctx.font = '18px Arial'
+  drawCentered('All 5 levels cleared!', gameHeight / 2 - 40)
 
   ctx.fillStyle = '#ffd700'
   ctx.font = 'bold 22px Arial'
-  drawCentered(`Total Coins: ${game.coinsCollected}`, gameHeight / 2 + 34)
+  drawCentered(`⭐ Total Coins: ${game.coinsCollected} ⭐`, gameHeight / 2)
 
+  ctx.fillStyle = '#ffe0f0'
+  ctx.font = '15px Arial'
+  drawCentered('You are a Bird Game master!', gameHeight / 2 + 32)
+
+  // Play again hint
   ctx.fillStyle = 'rgba(255,255,255,0.18)'
-  roundRect(ctx, 60, gameHeight / 2 + 55, gameWidth - 120, 44, 12)
+  roundRect(ctx, 60, gameHeight / 2 + 65, gameWidth - 120, 44, 12)
   ctx.fill()
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)'
+  ctx.lineWidth = 1
+  roundRect(ctx, 60, gameHeight / 2 + 65, gameWidth - 120, 44, 12)
+  ctx.stroke()
 
   ctx.fillStyle = '#fff'
   ctx.font = 'bold 18px Arial'
-  drawCentered('[R] Play Again', gameHeight / 2 + 82)
+  drawCentered('[R] / Tap button to Play Again', gameHeight / 2 + 92)
 }
 
 function drawHUD() {
@@ -602,20 +724,23 @@ function draw() {
   if (game.state === 'GAME_OVER') drawGameOverOverlay()
   if (game.state === 'WINNER') drawWinnerOverlay()
 }
-
+function flapAction() {
+  if (game.state === 'READY') {
+    game.state = 'RUNNING'
+    game.velocityY = FLAP_VY
+    pipeSpawnAccumulator = 0
+    startBgMusic()
+    syncReactiveState()
+  } else if (game.state === 'RUNNING') {
+    game.velocityY = FLAP_VY
+  }
+}
 function handleKeydown(event) {
   const key = event.code
 
   if (key === 'Space') {
     event.preventDefault()
-    if (game.state === 'READY') {
-      game.state = 'RUNNING'
-      game.velocityY = FLAP_VY
-      pipeSpawnAccumulator = 0
-      startBgMusic()
-    } else if (game.state === 'RUNNING') {
-      game.velocityY = FLAP_VY
-    }
+    flapAction()
   }
 
   if (key === 'KeyC' && game.state === 'GAME_OVER' && game.currentLevel >= 2) {
@@ -631,7 +756,57 @@ function handleKeydown(event) {
     resetFullGame()
   }
 }
+function handleContinue() {
+  if (game.state === 'GAME_OVER' && game.currentLevel >= 2) {
+    const cost = CONTINUE_COST[game.currentLevel - 1]
+    if (game.coinsCollected >= cost) {
+      doContinueLevel()
+    } else {
+      game.showNotEnoughCoins = true
+    }
+  }
+}
+function handleTap(event) {
+  if (event) {
+    event.preventDefault()
+    event.stopPropagation()
+  }
 
+  let tapY = 0
+  if (event && event.type === 'pointerdown') {
+    tapY = event.clientY
+    if (canvasRef.value) {
+      const rect = canvasRef.value.getBoundingClientRect()
+      tapY = ((tapY - rect.top) / rect.height) * gameHeight
+    }
+  }
+
+  if (game.state === 'READY' || game.state === 'RUNNING') {
+    flapAction()
+  } else if (game.state === 'GAME_OVER') {
+    const cost = CONTINUE_COST[game.currentLevel - 1] || 0
+    const canContinue = game.currentLevel >= 2 && game.coinsCollected >= cost
+
+    // divY for Continue button is gameHeight / 2 - 45
+    // restart button starts around gameHeight / 2 + 50
+    const restartThresholdY = gameHeight / 2 + 40
+
+    if (tapY > restartThresholdY) {
+      resetFullGame()
+    } else if (canContinue) {
+      doContinueLevel()
+    } else if (game.currentLevel >= 2) {
+      game.showNotEnoughCoins = true
+      syncReactiveState()
+    } else {
+      resetFullGame()
+    }
+  } else if (game.state === 'WINNER') {
+    resetFullGame()
+  }
+
+  focusCanvas()
+}
 function loop(timestamp) {
   if (!lastTime) lastTime = timestamp
   const dtMs = timestamp - lastTime
@@ -693,24 +868,60 @@ canvas {
   outline: none;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35);
   background: black;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .game-actions {
   display: flex;
-  gap: 1rem;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
 button {
-  padding: 0.8rem 1.2rem;
+  padding: 0.75rem 1.1rem;
   border: none;
   border-radius: 10px;
   cursor: pointer;
   font-weight: 600;
+  font-size: 0.95rem;
+  background: rgba(255,255,255,0.15);
+  color: #fff;
+  transition: background 0.2s, transform 0.1s;
+}
+
+button:active {
+  transform: scale(0.96);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn-continue {
+  background: linear-gradient(135deg, #f7971e, #ffd200);
+  color: #1a1a1a;
+}
+
+.btn-play-again {
+  background: linear-gradient(135deg, #a18cd1, #fbc2eb);
+  color: #1a1a1a;
+  font-size: 1rem;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
 }
 
 .hint {
   margin: 0;
-  color: white;
+  color: rgba(255,255,255,0.75);
   text-align: center;
+  font-size: 0.82rem;
 }
 </style>
