@@ -1,12 +1,12 @@
-# 🐦 Game ON!! — Flying Bird Game
+#  Game ON!! — Flying Bird Game
 
 A browser-based 2D Flying Bird Game built with **Vue 3** and the **HTML5 Canvas API**. Navigate your bird through pipe obstacles across 5 progressively challenging levels, collect coins, and aim for the win screen!
 
-🎮 **[Play the game live](https://ammun99.github.io/bird-game-page/)**
+ **[Play the game live](https://ammun99.github.io/bird-game-page/)**
 
 ---
 
-## 📸 Screenshots
+## Screenshots
 
 | Gameplay | Game Over | Victory |
 |----------|-----------|---------|
@@ -14,20 +14,20 @@ A browser-based 2D Flying Bird Game built with **Vue 3** and the **HTML5 Canvas 
 
 ---
 
-## ✨ Features
+## Features
 
-- 🏆 **5 Progressive Levels** — Speed increases, gaps narrow, and more pipes to survive each level
-- 🪙 **Coin Collection System** — Collect coins mid-flight; they carry over across all levels
-- 💀 **Continue Mechanic** — Spend coins to continue from the current level after a game over (Level 2+)
-- 🎵 **Sound & Music** — Background music, coin collect, game over, and win sound effects
-- 🎊 **Confetti Win Screen** — Animated particle celebration when you clear all 5 levels
-- 📱 **Mobile Friendly** — Full touch/tap support alongside keyboard controls
-- 🕊️ **Hover Animation** — Smooth sine-wave idle animation before the game starts
-- 📊 **Live HUD** — Real-time display of level, pipes passed, and coin count
+-  **5 Progressive Levels** — Speed increases, gaps narrow, and more pipes to survive each level
+-  **Coin Collection System** — Collect coins mid-flight; they carry over across all levels
+-  **Continue Mechanic** — Spend coins to continue from the current level after a game over (Level 2+)
+-  **Sound & Music** — Background music, coin collect, game over, and win sound effects
+-  **Confetti Win Screen** — Animated particle celebration when you clear all 5 levels
+-  **Mobile Friendly** — Full touch/tap support alongside keyboard controls
+-  **Hover Animation** — Smooth sine-wave idle animation before the game starts
+-  **Live HUD** — Real-time display of level, pipes passed, and coin count
 
 ---
 
-## 🎮 Controls
+##  Controls
 
 | Action | Keyboard | Mobile |
 |--------|----------|--------|
@@ -37,7 +37,7 @@ A browser-based 2D Flying Bird Game built with **Vue 3** and the **HTML5 Canvas 
 
 ---
 
-## 🗺️ Level Design
+##  Level Design
 
 | Level | Difficulty | Pipe Gap | Speed | Pipe Pairs | Min Coins |
 |-------|------------|----------|-------|------------|-----------|
@@ -49,7 +49,7 @@ A browser-based 2D Flying Bird Game built with **Vue 3** and the **HTML5 Canvas 
 
 ---
 
-## 🛠️ Tech Stack
+##  Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
@@ -63,7 +63,7 @@ A browser-based 2D Flying Bird Game built with **Vue 3** and the **HTML5 Canvas 
 
 ---
 
-## 🚀 Getting Started
+##  Getting Started
 
 ### Prerequisites
 
@@ -101,7 +101,7 @@ npx gh-pages -d dist
 
 ---
 
-## 📁 Project Structure
+##  Project Structure
 
 ```
 bird-game-page/
@@ -127,7 +127,7 @@ bird-game-page/
 
 ---
 
-## ⚙️ How It Works
+##  How It Works
 
 The game runs a **delta-time driven `requestAnimationFrame` loop**. Each frame:
 
@@ -153,10 +153,10 @@ The game runs a **delta-time driven `requestAnimationFrame` loop**. Each frame:
 
 ---
 
-## 📄 Presentation
+##  Presentation
 
 A full project presentation is included in the repository: [`BirdGame_Presentation.pdf`](./BirdGame_Presentation.pdf)
 
 ---
 
-> Built with ❤️ using Vue 3 + Vite
+> Built with using Vue 3 + Vite
