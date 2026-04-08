@@ -12,8 +12,6 @@ A browser-based 2D Flying Bird Game built with **Vue 3** and the **HTML5 Canvas 
 |----------|-----------|---------|
 | ![Gameplay](./src/assets/gameplay.png) | ![Game Over](./src/assets/gameover.png) | ![Victory](./src/assets/victory.png) |
 
-> _Replace the image paths above with your actual screenshot assets if needed._
-
 ---
 
 ## ✨ Features
